@@ -2,14 +2,20 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 
+using System.Linq;
 using identityserver.Services;
+using identityserver.Storage;
 using IdentityServer4;
+using IdentityServer4.Models;
 using IdentityServer4.Quickstart.UI;
+using IdentityServer4.Services;
+using IdentityServer4.Test;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MongoDB.Bson.Serialization.Conventions;
 
 namespace identityserver
 {
@@ -28,54 +34,29 @@ namespace identityserver
         {
             services.AddControllersWithViews();
 
-            // configures IIS out-of-proc settings (see https://github.com/aspnet/AspNetCore/issues/14882)
-            services.Configure<IISOptions>(iis =>
-            {
-                iis.AuthenticationDisplayName = "Windows";
-                iis.AutomaticAuthentication = false;
-            });
-
-            // configures IIS in-proc settings
-            services.Configure<IISServerOptions>(iis =>
-            {
-                iis.AuthenticationDisplayName = "Windows";
-                iis.AutomaticAuthentication = false;
-            });
-
             var builder = services.AddIdentityServer(options =>
             {
+                options.IssuerUri = Configuration.GetValue<string>("ISSUER_URI");
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
             })
-                .AddTestUsers(TestUsers.Users);
-
-            // in-memory, code config
-            builder.AddInMemoryIdentityResources(Config.Ids);
-            builder.AddInMemoryApiResources(Config.Apis);
-            builder.AddInMemoryClients(Config.Clients);
+            .AddMongoRepository(
+                Configuration.GetValue<string>("MONGO_CONNECTION"),
+                Configuration.GetValue<string>("MONGO_DATABASE_NAME"))
+            .AddClients()
+            .AddIdentityApiResources()
+            .AddPersistedGrants();
+            
+            seedDatabase(services);
+            
             builder.AddProfileService<ProfileService>();
-
-            // or in-memory, json config
-            //builder.AddInMemoryIdentityResources(Configuration.GetSection("IdentityResources"));
-            //builder.AddInMemoryApiResources(Configuration.GetSection("ApiResources"));
-            //builder.AddInMemoryClients(Configuration.GetSection("clients"));
 
             // not recommended for production - you need to store your key material somewhere secure
             builder.AddDeveloperSigningCredential();
 
-            services.AddAuthentication()
-                .AddGoogle(options =>
-                {
-                    options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
-
-                    // register your IdentityServer with Google at https://console.developers.google.com
-                    // enable the Google+ API
-                    // set the redirect URI to http://localhost:5000/signin-google
-                    options.ClientId = "copy client ID from Google here";
-                    options.ClientSecret = "copy client secret from Google here";
-                });
+            services.AddSingleton<ICorsPolicyService, RepositoryCorsPolicyService>();
         }
 
         public void Configure(IApplicationBuilder app)
@@ -94,6 +75,53 @@ namespace identityserver
             {
                 endpoints.MapDefaultControllerRoute();
             });
+        }
+
+        private void seedDatabase(IServiceCollection services)
+        {
+            configureMongoDriverIgnoreExtraElements();
+
+            var sp = services.BuildServiceProvider();
+            var repository = sp.GetService<IRepository>();
+
+            if (repository.All<Client>().Count() == 0)
+            {
+                foreach (var client in Config.Clients)
+                {
+                    repository.Add<Client>(client);
+                }
+            }
+
+            if (repository.All<IdentityResource>().Count() == 0)
+            {
+                foreach (var res in Config.Ids)
+                {
+                    repository.Add<IdentityResource>(res);
+                }
+            }
+
+            if (repository.All<ApiResource>().Count() == 0)
+            {
+                foreach (var api in Config.Apis)
+                {
+                    repository.Add<ApiResource>(api);
+                }
+            }
+
+            if (repository.All<TestUser>().Count() == 0)
+            {
+                foreach (var user in TestUsers.Users)
+                {
+                    repository.Add<TestUser>(user);
+                }
+            }
+        }
+
+        private void configureMongoDriverIgnoreExtraElements()
+        {
+            var pack = new ConventionPack();
+            pack.Add(new IgnoreExtraElementsConvention(true));
+            ConventionRegistry.Register("IdentityServer Mongo Conventions", pack, t => true);
         }
     }
 }

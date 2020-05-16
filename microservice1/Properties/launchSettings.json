@@ -17,14 +17,5 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "microservice1": {
-      "commandName": "Project",
-      "launchBrowser": true,
-      "launchUrl": "weatherforecast",
-      "applicationUrl": "http://localhost:5002",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    }
   }
 }

@@ -32,9 +32,9 @@ namespace microservice1
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             }).AddJwtBearer(o =>
             {
-                o.Authority = "http://localhost:5000";
-                o.Audience = "microservice1";
-                o.RequireHttpsMetadata = false;
+                o.Authority = Configuration.GetValue<string>("IDENTITY_AUTHORITY");
+                o.Audience = Configuration.GetValue<string>("IDENTITY_AUDIENCE");
+                o.RequireHttpsMetadata = Configuration.GetValue<bool>("IDENTITY_REQUIREHTTPSMETADATA");
             });
 
             services.AddAuthorization(options =>
@@ -48,16 +48,9 @@ namespace microservice1
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-                app.UseCors(options => options.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
-            }
-
-            app.UseHttpsRedirection();
+            app.UseCors(options => options.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 
             app.UseRouting();
-
             app.UseAuthentication();
             app.UseAuthorization();
 

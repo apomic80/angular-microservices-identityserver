@@ -4,7 +4,6 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { AuthService } from './auth.service';
 
-
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',

@@ -1,0 +1,36 @@
+version: '3.4'
+
+services:
+  microservice1:
+    build: ./microservice1
+    environment: 
+      - IDENTITY_AUTHORITY=http://identityserver
+    ports:
+      - "5002:80"
+    depends_on: 
+      - identityserver
+
+  microservice2:
+    build: ./microservice2
+    environment: 
+      - IDENTITY_AUTHORITY=http://identityserver
+    ports:
+      - "5003:80"
+    depends_on: 
+      - identityserver
+
+  identityserver:
+    build: ./identityserver
+    environment: 
+      - MONGO_CONNECTION=mongodb://mongodb
+      - MONGO_DATABASE_NAME=identityserber
+    ports:
+      - "5000:80"
+    depends_on: 
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    hostname: mongodb
+    ports:
+      - "27017:27017"
